@@ -11,8 +11,16 @@ const bot = new Bot(token);
 const twitchClientId = process.env.CLIENT_ID || "";
 const twitchClientSecret = process.env.CLIENT_SECRET || "";
 
-async function isStreamAlive(channelName: string) {
-  const url = `https://api.twitch.tv/helix/streams?user_login=kurobaaka`;
+let streamStatus = false;
+let messageId = -1;
+
+let chatId = Number(process.env.CHAT_ID) || 0;
+
+// let chatId = 931916742;
+const channelName = "joindev";
+
+async function getStreamInfo(channelName: string) {
+  const url = `https://api.twitch.tv/helix/streams?user_login=${channelName}`;
   const response = await axios.get(url, {
     headers: {
       "Client-ID": twitchClientId,
@@ -20,7 +28,7 @@ async function isStreamAlive(channelName: string) {
     },
   });
   console.log(response.data.data);
-  return response.data.data.length > 0;
+  return response.data.data;
 }
 
 async function getTwitchToken() {
@@ -34,25 +42,40 @@ async function getTwitchToken() {
   return response.data.access_token;
 }
 
-async function sendStreamAlert(chatId: string, message: string) {
-  await bot.api.sendMessage(chatId, message);
+async function sendStreamAlert(chatId: number, message: string) {
+  const response = await bot.api.sendMessage(chatId, message);
+  messageId = response.message_id;
+  console.log(messageId);
 }
 
-async function checkStream(chatId: string, channelName: string) {
-  if (await isStreamAlive(channelName)) {
+async function checkStream(chatId: number, channelName: string) {
+  const [{ type }] = await getStreamInfo(channelName);
+
+  if (!streamStatus && type === "live") {
     await sendStreamAlert(
       chatId,
       `Stream started: https://twitch.tv/${channelName}`
     );
+    streamStatus = true;
+  }
+
+  if (type !== "live") {
+    streamStatus = false;
+    await deleteMessageAlert(chatId, messageId);
   }
 }
 
-bot.command("start", async (ctx) => {
-  const channelName = "joindev";
+async function deleteMessageAlert(chatId: number, messageId: number) {
+  await bot.api.deleteMessage(chatId, messageId);
+}
 
-  setInterval(async () => {
-    await checkStream(ctx.chat.id + "", channelName);
-  }, 10000);
+setInterval(async () => {
+  await checkStream(chatId, channelName);
+}, 10000);
+
+bot.command("dev", async (ctx) => {
+  console.log(ctx.chatId);
+  await ctx.reply("dev");
 });
 
 bot.start();
