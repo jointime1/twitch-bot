@@ -6,7 +6,7 @@ dotenv.config();
 
 const token = process.env.BOT_TOKEN || "";
 
-const bot = new Bot(token);
+export const bot = new Bot(token);
 
 const twitchClientId = process.env.CLIENT_ID || "";
 const twitchClientSecret = process.env.CLIENT_SECRET || "";
@@ -28,7 +28,7 @@ async function getStreamInfo(channelName: string) {
     },
   });
   console.log(response.data.data);
-  return response.data.data;
+  return response.data.data || [];
 }
 
 async function getTwitchToken() {
@@ -49,19 +49,27 @@ async function sendStreamAlert(chatId: number, message: string) {
 }
 
 async function checkStream(chatId: number, channelName: string) {
-  const [{ type }] = await getStreamInfo(channelName);
+  const streamInfo = await getStreamInfo(channelName);
 
-  if (!streamStatus && type === "live") {
-    await sendStreamAlert(
-      chatId,
-      `Stream started: https://twitch.tv/${channelName}`
-    );
-    streamStatus = true;
-  }
+  if (streamInfo && streamInfo.length > 0) {
+    console.log("streamInfo:", streamInfo);
 
-  if (type !== "live") {
-    streamStatus = false;
-    await deleteMessageAlert(chatId, messageId);
+    const [{ type }] = streamInfo;
+
+    if (!streamStatus && type === "live") {
+      await sendStreamAlert(
+        chatId,
+        `Stream started: https://twitch.tv/${channelName}`
+      );
+      streamStatus = true;
+    }
+
+    if (type !== "live") {
+      streamStatus = false;
+      await deleteMessageAlert(chatId, messageId);
+    }
+  } else {
+    console.error("Stream info is empty or undefined");
   }
 }
 
@@ -73,9 +81,4 @@ setInterval(async () => {
   await checkStream(chatId, channelName);
 }, 10000);
 
-bot.command("dev", async (ctx) => {
-  console.log(ctx.chatId);
-  await ctx.reply("dev");
-});
-
-bot.start();
+// bot.start();

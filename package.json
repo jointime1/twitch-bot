@@ -2,9 +2,9 @@
   "name": "twitch-bot",
   "version": "1.0.0",
   "description": "",
-  "main": "index.ts",
+  "main": "src/bot.ts",
   "scripts": {
-    "dev": "nodemon index.ts"
+    "dev": "nodemon src/bot.ts"
   },
   "author": "",
   "license": "ISC",
